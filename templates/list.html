@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}All Entries{% endblock %}
+
+{% block content %}
+<h1>All Submitted Entries</h1>
+
+{% if entries %}
+  <p class="entry-count">{{ entries | length }} entry{{ 'ies' if entries | length != 1 else 'y' }} found.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Title</th>
+          <th>Message</th>
+          <th>Submitted At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in entries %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ entry.email }}</td>
+          <td>{{ entry.phone or '—' }}</td>
+          <td>{{ entry.title or '—' }}</td>
+          <td class="message-cell">{{ entry.message or '—' }}</td>
+          <td class="nowrap">{{ entry.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% else %}
+  <div class="empty-state">
+    <p>No entries yet.</p>
+    <a href="/" class="btn-submit">Submit the first one</a>
+  </div>
+{% endif %}
+{% endblock %}
