@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Email Collector** — a FastAPI web app that collects contact form submissions (email, phone, title, message) and persists them to a local `data.json` file. Server-side rendered with Jinja2 templates.
+**Email Collector** — a FastAPI web app that collects contact form submissions (email, title, message) and persists them to a local `data.json` file. Server-side rendered with Jinja2 templates.
 
 ## Development Commands
 

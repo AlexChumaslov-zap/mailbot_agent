@@ -21,7 +21,6 @@ async def show_form(request: Request, error: Optional[str] = None):
 async def submit_form(
     request: Request,
     email: str = Form(...),
-    phone: str = Form(""),
     title: str = Form(""),
     message: str = Form(""),
 ):
@@ -31,14 +30,14 @@ async def submit_form(
     On validation error: re-render form with error message.
     """
     try:
-        entry = EmailEntryCreate(email=email, phone=phone, title=title, message=message)
+        entry = EmailEntryCreate(email=email, title=title, message=message)
     except ValidationError as exc:
         # Extract the first human-readable error message
         first_error = exc.errors()[0]["msg"]
         return templates.TemplateResponse(
             "form.html",
             {"request": request, "error": first_error, "form_data": {
-                "email": email, "phone": phone, "title": title, "message": message
+                "email": email, "title": title, "message": message
             }},
             status_code=422,
         )

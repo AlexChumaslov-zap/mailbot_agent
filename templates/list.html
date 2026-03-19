@@ -14,7 +14,6 @@
         <tr>
           <th>#</th>
           <th>Email</th>
-          <th>Phone</th>
           <th>Title</th>
           <th>Message</th>
           <th>Submitted At</th>
@@ -25,7 +24,6 @@
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ entry.email }}</td>
-          <td>{{ entry.phone or '—' }}</td>
           <td>{{ entry.title or '—' }}</td>
           <td class="message-cell">{{ entry.message or '—' }}</td>
           <td class="nowrap">{{ entry.created_at }}</td>
