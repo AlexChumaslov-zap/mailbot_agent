@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}AI Web Search{% endblock %}
+
+{% block content %}
+<h1>AI Web Search</h1>
+
+<form method="POST" action="/search" class="search-form">
+  <div class="search-bar">
+    <input
+      type="text"
+      name="query"
+      id="query"
+      placeholder="Ask anything…"
+      required
+      autofocus
+      value="{{ query or '' }}"
+    />
+    <button type="submit" class="btn-submit">Search</button>
+  </div>
+</form>
+
+{% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if answer %}
+  <div class="search-result">
+    <div class="result-answer">{{ answer }}</div>
+
+    {% if sources %}
+      <div class="sources">
+        <h2>Sources</h2>
+        <ul>
+          {% for source in sources %}
+            <li>
+              <a href="{{ source.uri }}" target="_blank" rel="noopener noreferrer">
+                {{ source.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}
