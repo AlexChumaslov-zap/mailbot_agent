@@ -2,6 +2,7 @@ import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv
+from app.services.rag_service import retrieve
 
 load_dotenv()
 
@@ -40,3 +41,32 @@ def search_with_gemini(query: str) -> dict:
                 "Please wait until tomorrow or enable billing at https://ai.google.dev."
             ) from e
         raise RuntimeError(f"Gemini API error: {e}") from e
+
+
+def search_with_rag(query: str) -> dict:
+    """Retrieve relevant chunks from local docs, then answer with Gemini."""
+    chunks = retrieve(query, k=4)
+    context = "\n\n---\n\n".join(chunks)
+
+    prompt = f"""Answer the question using ONLY the context below.
+If the answer is not in the context, say so clearly.
+
+Context:
+{context}
+
+Question: {query}
+"""
+    try:
+        response = _llm.invoke([HumanMessage(content=prompt)])
+        return {
+            "answer": response.content or "",
+            "chunks": chunks,
+        }
+    except Exception as e:
+        err = str(e)
+        if "429" in err or "RESOURCE_EXHAUSTED" in err:
+            raise RuntimeError(
+                "Gemini API quota exceeded. The free tier daily limit has been reached. "
+                "Please wait until tomorrow or enable billing at https://ai.google.dev."
+            ) from e
+        raise RuntimeError(f"RAG error: {e}") from e

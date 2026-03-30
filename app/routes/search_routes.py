@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -18,7 +20,7 @@ async def search_page(request: Request):
 async def search_query(request: Request, query: str = Form(...)):
     """Send query to Gemini with web search and render results."""
     try:
-        result = gemini_service.search_with_gemini(query)
+        result = await asyncio.to_thread(gemini_service.search_with_gemini, query)
         return templates.TemplateResponse("search.html", {
             "request": request,
             "query": query,

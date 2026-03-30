@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}RAG Search{% endblock %}
+
+{% block content %}
+<h1>RAG Search</h1>
+<p class="subtitle">Answers grounded in your local documents.</p>
+
+<form method="POST" action="/rag" class="search-form">
+  <div class="search-bar">
+    <input
+      type="text"
+      name="query"
+      id="query"
+      placeholder="Ask about your documents…"
+      required
+      autofocus
+      value="{{ query or '' }}"
+    />
+    <button type="submit" class="btn-submit">Search</button>
+  </div>
+</form>
+
+{% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if answer %}
+  <div class="search-result">
+    <div class="result-answer">{{ answer }}</div>
+
+    {% if chunks %}
+      <div class="sources">
+        <h2>Retrieved Passages</h2>
+        <ul>
+          {% for chunk in chunks %}
+            <li><pre class="chunk">{{ chunk }}</pre></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}
