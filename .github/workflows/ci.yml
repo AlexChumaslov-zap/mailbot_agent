@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -25,9 +28,9 @@ jobs:
       - name: Lint with flake8
         run: |
           # stop on syntax errors or undefined names
-          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --exclude=venv,.venv --count --select=E9,F63,F7,F82 --show-source --statistics
           # warnings as non-blocking (max-line 120, max-complexity 10)
-          flake8 . --count --max-complexity=10 --max-line-length=120 --statistics --exit-zero
+          flake8 . --exclude=venv,.venv --count --max-complexity=10 --max-line-length=120 --statistics --exit-zero
 
   test:
     runs-on: ubuntu-latest
