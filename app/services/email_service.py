@@ -8,6 +8,13 @@ from app.models.email_model import EmailEntry, EmailEntryCreate
 DATA_FILE = "data.json"
 
 
+def _sync_to_s3():
+    """Upload data.json to S3 if S3_BUCKET is configured."""
+    if os.getenv("S3_BUCKET"):
+        from app.services.s3_service import upload_file
+        upload_file(DATA_FILE, "data.json")
+
+
 def _read_all() -> List[dict]:
     """Read all entries from the JSON file. Returns empty list if file is missing or invalid."""
     if not os.path.exists(DATA_FILE):
@@ -46,5 +53,6 @@ def save_entry(entry: EmailEntryCreate) -> EmailEntry:
 
     entries.append(new_entry.model_dump())
     _write_all(entries)
+    _sync_to_s3()
 
     return new_entry
