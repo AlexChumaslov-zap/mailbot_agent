@@ -44,14 +44,14 @@ phases:
 
       - echo Creating deploy artifact...
       - zip -r deploy.zip Dockerrun.aws.json .ebextensions/
-      - aws s3 cp deploy.zip s3://$S3_BUCKET/deploy/$IMAGE_TAG.zip
+      - aws s3 cp deploy.zip s3://$DEPLOY_BUCKET/deploy/$IMAGE_TAG.zip
 
       - echo Deploying to Elastic Beanstalk...
       - |
         aws elasticbeanstalk create-application-version \
           --application-name "$EB_APP_NAME" \
           --version-label "$IMAGE_TAG" \
-          --source-bundle S3Bucket="$S3_BUCKET",S3Key="deploy/$IMAGE_TAG.zip"
+          --source-bundle S3Bucket="$DEPLOY_BUCKET",S3Key="deploy/$IMAGE_TAG.zip"
       - |
         aws elasticbeanstalk update-environment \
           --application-name "$EB_APP_NAME" \
