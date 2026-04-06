@@ -1,0 +1,65 @@
+version: 0.2
+
+env:
+  variables:
+    IMAGE_NAME: email-collector
+    EB_APP_NAME: email-collector
+    EB_ENV_NAME: email-collector-env
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
+      - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - IMAGE_TAG=${COMMIT_HASH:-latest}
+
+  build:
+    commands:
+      - echo Building Docker image...
+      - docker build -t $IMAGE_NAME .
+      - docker tag $IMAGE_NAME:latest $ECR_REPO_URI:latest
+      - docker tag $IMAGE_NAME:latest $ECR_REPO_URI:$IMAGE_TAG
+
+  post_build:
+    commands:
+      - echo Pushing to ECR...
+      - docker push $ECR_REPO_URI:latest
+      - docker push $ECR_REPO_URI:$IMAGE_TAG
+
+      - echo Generating Dockerrun.aws.json for Elastic Beanstalk...
+      - |
+        cat > Dockerrun.aws.json <<EOF
+        {
+          "AWSEBDockerrunVersion": "1",
+          "Image": {
+            "Name": "$ECR_REPO_URI:$IMAGE_TAG",
+            "Update": "true"
+          },
+          "Ports": [
+            { "ContainerPort": 8000, "HostPort": 8000 }
+          ]
+        }
+        EOF
+
+      - echo Creating deploy artifact...
+      - zip -r deploy.zip Dockerrun.aws.json .ebextensions/
+      - aws s3 cp deploy.zip s3://$S3_BUCKET/deploy/$IMAGE_TAG.zip
+
+      - echo Deploying to Elastic Beanstalk...
+      - |
+        aws elasticbeanstalk create-application-version \
+          --application-name "$EB_APP_NAME" \
+          --version-label "$IMAGE_TAG" \
+          --source-bundle S3Bucket="$S3_BUCKET",S3Key="deploy/$IMAGE_TAG.zip"
+      - |
+        aws elasticbeanstalk update-environment \
+          --application-name "$EB_APP_NAME" \
+          --environment-name "$EB_ENV_NAME" \
+          --version-label "$IMAGE_TAG"
+
+      - echo Deploy triggered for $IMAGE_TAG
+
+artifacts:
+  files:
+    - Dockerrun.aws.json

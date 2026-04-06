@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-import google.generativeai as palm
+import requests as http_requests
 from langchain_core.embeddings import Embeddings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -10,7 +10,8 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 load_dotenv()
 
 DOCS_DIR = Path("docs")
-EMBED_MODEL = "models/text-embedding-004"
+EMBED_MODEL = "gemini-embedding-001"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 VECTOR_STORE_BACKEND = os.getenv("VECTOR_STORE", "faiss").lower()
 
 # Pinecone settings (only used when VECTOR_STORE=pinecone)
@@ -20,31 +21,30 @@ PINECONE_NAMESPACE = os.getenv("PINECONE_NAMESPACE", "docs")
 # FAISS settings (only used when VECTOR_STORE=faiss)
 FAISS_INDEX_PATH = Path("faiss_index")
 
-palm.configure(api_key=os.getenv("GEMINI_API_KEY"))
+_EMBED_URL = (
+    f"https://generativelanguage.googleapis.com/v1beta/models/{EMBED_MODEL}:embedContent"
+    f"?key={GEMINI_API_KEY}"
+)
 
 
 class _GeminiEmbeddings(Embeddings):
-    """LangChain-compatible wrapper using the google-generativeai SDK."""
+    """LangChain-compatible wrapper calling the Gemini REST API directly (v1)."""
+
+    def _embed_one(self, text: str, task_type: str) -> list[float]:
+        payload = {
+            "model": f"models/{EMBED_MODEL}",
+            "content": {"parts": [{"text": text}]},
+            "taskType": task_type,
+        }
+        resp = http_requests.post(_EMBED_URL, json=payload, timeout=30)
+        resp.raise_for_status()
+        return resp.json()["embedding"]["values"]
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        results = []
-        for i in range(0, len(texts), 100):
-            batch = texts[i : i + 100]
-            response = palm.embed_content(
-                model=EMBED_MODEL,
-                content=batch,
-                task_type="retrieval_document",
-            )
-            results.extend(response["embedding"])
-        return results
+        return [self._embed_one(t, "RETRIEVAL_DOCUMENT") for t in texts]
 
     def embed_query(self, text: str) -> list[float]:
-        response = palm.embed_content(
-            model=EMBED_MODEL,
-            content=text,
-            task_type="retrieval_query",
-        )
-        return response["embedding"]
+        return self._embed_one(text, "RETRIEVAL_QUERY")
 
 
 _embeddings = _GeminiEmbeddings()
@@ -59,7 +59,8 @@ _vectorstore = None  # loaded lazily
 def _faiss_load_or_build():
     from langchain_community.vectorstores import FAISS
 
-    if FAISS_INDEX_PATH.exists():
+    index_file = FAISS_INDEX_PATH / "index.faiss"
+    if index_file.exists():
         return FAISS.load_local(
             str(FAISS_INDEX_PATH), _embeddings, allow_dangerous_deserialization=True
         )
@@ -91,7 +92,7 @@ def _pinecone_ensure_index(pc):
     if PINECONE_INDEX_NAME not in existing:
         pc.create_index(
             name=PINECONE_INDEX_NAME,
-            dimension=768,      # output dim of models/text-embedding-004
+            dimension=3072,     # output dim of gemini-embedding-001
             metric="cosine",
             spec=ServerlessSpec(
                 cloud=os.getenv("PINECONE_CLOUD", "aws"),
@@ -101,7 +102,7 @@ def _pinecone_ensure_index(pc):
 
 
 def _pinecone_load_or_build():
-    from langchain_pinecone import PineconeVectorStore
+    from langchain_pinecone import Pinecone as PineconeVectorStore
 
     pc = _pinecone_client()
     _pinecone_ensure_index(pc)
@@ -122,7 +123,7 @@ def _pinecone_load_or_build():
 
 
 def _pinecone_build():
-    from langchain_pinecone import PineconeVectorStore
+    from langchain_pinecone import Pinecone as PineconeVectorStore
 
     pc = _pinecone_client()
     _pinecone_ensure_index(pc)
