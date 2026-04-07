@@ -11,11 +11,13 @@ from app.routes.rag_routes import router as rag_router
 
 @asynccontextmanager
 async def lifespan(app):
-    """Download docs and data from S3 on startup (only when S3_BUCKET is set)."""
+    """Initialize database and download resources from S3 on startup."""
+    from app.services.database import init_db
+    init_db()
+
     if os.getenv("S3_BUCKET"):
-        from app.services.s3_service import download_dir, download_file
+        from app.services.s3_service import download_dir
         download_dir("docs/", "docs")
-        download_file("data.json", "data.json")
     yield
 
 
