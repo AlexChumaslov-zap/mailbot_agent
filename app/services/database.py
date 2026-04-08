@@ -86,8 +86,24 @@ def _row_to_rfi(row: sqlite3.Row, attachments: List[Attachment] = None) -> RfiEm
     )
 
 
-def save_rfi_email(entry: RfiEmailCreate) -> RfiEmail:
-    """Insert an RFI email and its attachments. Returns the saved RfiEmail."""
+def rfi_exists(message_id: str) -> bool:
+    """Return True if an RFI email with this message_id is already stored."""
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM rfi_emails WHERE message_id = ?", (message_id,)
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
+def save_rfi_email(entry: RfiEmailCreate) -> Optional[RfiEmail]:
+    """Insert an RFI email and its attachments. Returns the saved RfiEmail,
+    or None if a duplicate message_id already exists."""
+    if entry.message_id and rfi_exists(entry.message_id):
+        return None
+
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     conn = get_connection()
     try:

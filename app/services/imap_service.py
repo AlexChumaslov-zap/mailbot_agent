@@ -12,7 +12,7 @@ import imapclient
 from dotenv import load_dotenv
 
 from app.models.email_model import RfiEmailCreate, AttachmentCreate
-from app.services.database import save_rfi_email
+from app.services.database import save_rfi_email, rfi_exists
 from app.services.s3_service import upload_bytes
 
 load_dotenv()
@@ -88,19 +88,34 @@ def _process_message(client: imapclient.IMAPClient, uid: int) -> bool:
 
     Returns True if the message was an RFI and was saved.
     """
-    raw_messages = client.fetch([uid], ["RFC822", "FLAGS"])
+    # Fetch headers first to check subject and dedup before downloading full body
+    raw_headers = client.fetch([uid], ["BODY[HEADER]"])
+    raw_hdr = raw_headers.get(uid)
+    if raw_hdr is None:
+        return False
+
+    header_msg = email_lib.message_from_bytes(raw_hdr[b"BODY[HEADER]"])
+
+    subject = _decode_header_value(header_msg["Subject"])
+    if RFI_TAG not in subject:
+        return False
+
+    message_id = header_msg["Message-ID"] or ""
+
+    # Skip if already stored — avoids re-downloading body and re-uploading attachments
+    if message_id and rfi_exists(message_id):
+        logger.info("Skipping duplicate RFI email message_id=%s", message_id)
+        client.set_flags([uid], [b"\\Seen"], silent=True)
+        return False
+
+    # Now fetch the full message for attachments
+    raw_messages = client.fetch([uid], ["RFC822"])
     raw = raw_messages.get(uid)
     if raw is None:
         return False
 
     msg = email_lib.message_from_bytes(raw[b"RFC822"])
-
-    subject = _decode_header_value(msg["Subject"])
-    if RFI_TAG not in subject:
-        return False
-
     sender = _decode_header_value(msg["From"])
-    message_id = msg["Message-ID"] or ""
 
     try:
         email_date = parsedate_to_datetime(msg["Date"]).strftime("%Y-%m-%d %H:%M:%S UTC")
