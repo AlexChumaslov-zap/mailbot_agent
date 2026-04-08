@@ -30,6 +30,11 @@ def upload_file(local_path: str, s3_key: str):
     _s3.upload_file(local_path, S3_BUCKET, s3_key)
 
 
+def upload_bytes(data: bytes, s3_key: str, content_type: str = "application/octet-stream"):
+    """Upload raw bytes to S3."""
+    _s3.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=data, ContentType=content_type)
+
+
 def download_file(s3_key: str, local_path: str):
     """Download a single file from S3. Silently skips if the file doesn't exist yet."""
     Path(local_path).parent.mkdir(parents=True, exist_ok=True)

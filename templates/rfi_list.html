@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}RFI Emails{% endblock %}
+
+{% block content %}
+<h1>RFI Emails</h1>
+
+{% if rfis %}
+  <p class="entry-count">{{ rfis | length }} RFI email{{ 's' if rfis | length != 1 else '' }} found.</p>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Subject</th>
+          <th>From</th>
+          <th>Date</th>
+          <th>Attachments</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rfi in rfis %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ rfi.subject }}</td>
+          <td>{{ rfi.sender }}</td>
+          <td class="nowrap">{{ rfi.email_date }}</td>
+          <td>{{ rfi.attachments | length }}</td>
+          <td><a href="/rfi-emails/{{ rfi.id }}">View</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% else %}
+  <div class="empty-state">
+    <p>No RFI emails captured yet.</p>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}RFI: {{ rfi.subject }}{% endblock %}
+
+{% block content %}
+<h1>{{ rfi.subject }}</h1>
+
+<div class="rfi-detail">
+  <p><strong>From:</strong> {{ rfi.sender }}</p>
+  <p><strong>Date:</strong> {{ rfi.email_date }}</p>
+  <p><strong>Message ID:</strong> {{ rfi.message_id or '—' }}</p>
+  <p><strong>Received at:</strong> {{ rfi.received_at }}</p>
+
+  {% if rfi.attachments %}
+    <h2>Attachments ({{ rfi.attachments | length }})</h2>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Filename</th>
+            <th>Type</th>
+            <th>Size</th>
+            <th>S3 Key</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for att in rfi.attachments %}
+          <tr>
+            <td>{{ att.filename }}</td>
+            <td>{{ att.content_type or '—' }}</td>
+            <td>{{ att.file_size or '—' }}</td>
+            <td class="message-cell">{{ att.s3_key or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No attachments.</p>
+  {% endif %}
+</div>
+
+<a href="/rfi-emails">&larr; Back to RFI list</a>
+{% endblock %}
