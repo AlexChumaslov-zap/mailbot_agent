@@ -1,0 +1,94 @@
+# ============================================================================
+# Deploy Mailbot to AWS ECS Fargate
+# ============================================================================
+# Triggers on push to main. Builds the Docker image, pushes it to ECR,
+# and updates the ECS service to pull the new image.
+#
+# Required GitHub Secrets (set in repo Settings > Secrets and variables > Actions):
+#   AWS_ACCESS_KEY_ID       - IAM user access key with ECR + ECS permissions
+#   AWS_SECRET_ACCESS_KEY   - IAM user secret key
+#
+# Required GitHub Variables (Settings > Secrets and variables > Actions > Variables):
+#   AWS_REGION              - e.g. us-east-1
+#   ECR_REPOSITORY          - e.g. mailbot
+#   ECS_CLUSTER             - e.g. mailbot-cluster
+#   ECS_SERVICE             - e.g. mailbot-service
+#   ECS_TASK_DEFINITION     - e.g. mailbot-task
+#   ECS_CONTAINER_NAME      - e.g. mailbot
+# ============================================================================
+
+name: Deploy to ECS Fargate
+
+on:
+  push:
+    branches: [main]
+
+  # Lets you trigger a deploy manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Authenticate with AWS
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 3. Log in to ECR so we can push our image
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # 4. Build the Docker image and push it to ECR
+      #    Tags with both the git SHA (for traceability) and "latest"
+      - name: Build and push Docker image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+                        -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      # 5. Download the current task definition from AWS
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ vars.ECS_TASK_DEFINITION }} \
+            --query taskDefinition \
+            > task-definition.json
+
+      # 6. Update the task definition with the new image
+      - name: Update image in task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ vars.ECS_CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      # 7. Deploy the updated task definition to ECS
+      - name: Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ vars.ECS_SERVICE }}
+          cluster: ${{ vars.ECS_CLUSTER }}
+          wait-for-service-stability: true

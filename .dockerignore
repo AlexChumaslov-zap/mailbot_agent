@@ -1,9 +1,28 @@
+# Credentials
+.env
+service_account.json
+
+# Python artifacts
 venv/
 __pycache__/
 *.pyc
-.env
-faiss_index/
-data.json
+
+# Git
+.git/
 .gitignore
+
+# Data files (created at runtime)
+data.db
+data.json
+faiss_index/
+docs/
+
+# Misc
+README.md
+.DS_Store
+.ebextensions/
+buildspec.yml
+trust-policy.json
 Dockerfile
 .dockerignore
+tests/
